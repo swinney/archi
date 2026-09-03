@@ -7,6 +7,47 @@ list. An empty list below means nothing is currently blocked.
 
 <!-- The loop appends entries below this line. -->
 
+## Task 2.1 (fix-issue-407-fence-delimiter-backtick-runs) — PR creation blocked by token scope
+
+**Status: BLOCKED — GH_TOKEN lacks pull_request write scope on `fasrc/archi`.**
+
+All implementation work for `fix/issue-407-fence-delimiter-backtick-runs` is complete
+and green: `bash scripts/gate.sh` exits 0 (3652 passed, diff-cover 100% on
+`src/data_manager/collectors/processing.py`), `git status` is clean, `git diff
+origin/dev --stat` touches only `src/data_manager/collectors/processing.py`,
+`tests/unit/test_html_to_markdown_processor.py`, and this change's
+`openspec/changes/fix-issue-407-fence-delimiter-backtick-runs/` files, and the
+design.md "Verification" `markdown-it-py` script prints `PASS`. The branch is pushed
+to `swinney/archi` (fork; same pattern as the #335 precedent below). However:
+
+- `git push -u origin fix/issue-407-fence-delimiter-backtick-runs` fails: the
+  `swinney` account has no push access to `fasrc/archi` (403, reproduced twice
+  including with `GIT_CURL_VERBOSE`; `gh api repos/fasrc/archi --jq '.permissions'`
+  for the same token reports `push: true`, so the token's reported metadata and the
+  actual git ACL disagree).
+- `gh pr create --repo fasrc/archi --base dev --head swinney:fix/issue-407-fence-delimiter-backtick-runs ...`
+  fails: `Resource not accessible by personal access token (createPullRequest)`.
+
+**Resolution needed:** a human should open the PR from
+`swinney:fix/issue-407-fence-delimiter-backtick-runs` → `fasrc/archi:dev`, or provide
+a token with PR-write access to `fasrc/archi`. The PR body should include:
+- `Closes #407`
+- **What**: `_ArchiMarkdownConverter(MarkdownConverter)` overrides `convert_pre` to
+  size the fence to `max(3, longest_backtick_run + 1)` instead of a fixed three
+  backticks, via the seam `_markdownify()` called from `_worker()`
+  (`processing.py:411`).
+- **Measured outputs**: `<p><code>a<br>```<br># heading</code></p>` before
+  `` '```\na\n```\n# heading\n```' `` / after `` '````\na\n```\n# heading\n````' ``
+  (design.md D5 has the full table).
+- **Corpus**: 0 of 25 promoted and 0 of 145 native `<pre>` in the 60-page sample carry
+  a run of three or more backticks — no persisted text changes for the sample.
+- **Verification**: the design.md `markdown-it-py` script prints `PASS`.
+- **Related**: PR #405 (Codex thread
+  https://github.com/fasrc/archi/pull/405#discussion_r3912257990); PR #414 for #406
+  touches the same file (whichever merges second rebases); #410 adds `convert_list`
+  to `_ArchiMarkdownConverter`.
+- **No re-ingest and no redeploy in this PR.**
+
 ## Task 5.2 — "Run before/after benchmark; record recall/precision deltas"
 
 **Status: BLOCKED — requires live infrastructure not available to the loop.**
